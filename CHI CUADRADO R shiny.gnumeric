@@ -1,0 +1,786 @@
+library(shiny)
+library(plotly)
+library(DT)
+
+cols <- c("#007BFF","#FFC107","#28A745","#DC3545","#6F42C1")
+
+valores_criticos_chi2 <- data.frame(
+  gl = 1:20,
+  `0.10` = c(2.71, 4.61, 6.25, 7.78, 9.24, 10.64, 12.02, 13.36, 14.68, 15.99, 
+             17.28, 18.55, 19.81, 21.06, 22.31, 23.54, 24.77, 25.99, 27.20, 28.41),
+  `0.05` = c(3.84, 5.99, 7.81, 9.49, 11.07, 12.59, 14.07, 15.51, 16.92, 18.31, 
+             19.68, 21.03, 22.36, 23.68, 25.00, 26.30, 27.59, 28.87, 30.14, 31.41),
+  `0.01` = c(6.63, 9.21, 11.34, 13.28, 15.09, 16.81, 18.48, 20.09, 21.67, 23.21, 
+             24.72, 26.22, 27.69, 29.14, 30.58, 32.00, 33.41, 34.81, 36.19, 37.57),
+  check.names = FALSE
+)
+
+ui <- navbarPage(
+  title = tags$span(HTML("&#128202; Estadistica Facil: Chi-cuadrado")),
+  id    = "nav",
+  theme = bslib::bs_theme(version = 5, bootswatch = "flatly"),
+  position = "fixed-top",
+  
+  tabPanel(title = tags$span(HTML("&#127968; Inicio")),
+           fluidPage(
+             tags$head(
+               tags$style(HTML("
+                 h3 {color:#007BFF;}
+                 h4 {color:#28A745;}
+                 .lead {font-size:1.2rem;}
+                 body {padding-top: 70px;}
+                 .info-box {background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin: 10px 0;}
+               "))
+             ),
+             
+             div(class = "info-box",
+                 h3("Que es la prueba Chi-cuadrado?"),
+                 p("La prueba Chi-cuadrado (se pronuncia 'ji-cuadrado') es una herramienta estadistica que nos ayuda a comparar lo que observamos en la realidad con lo que esperariamos teoricamente."),
+                 p("Es como cuando comparas tus gastos reales con lo que habias presupuestado: si hay mucha diferencia, algo interesante esta pasando.")
+             ),
+             
+             div(class = "info-box",
+                 h4("Historia"),
+                 p("La prueba Chi-cuadrado fue desarrollada por el matematico ingles Karl Pearson en el ano 1900."),
+                 p("Pearson queria crear una forma de medir que tan bien se ajustaban los datos observados a lo que se esperaba teoricamente."),
+                 p("Desde entonces, se ha convertido en una de las pruebas estadisticas mas usadas en investigacion.")
+             ),
+             
+             div(class = "info-box",
+                 h4("Para que sirve?"),
+                 tags$ul(
+                   tags$li("Verificar si una moneda esta cargada (mas caras que sellos)"),
+                   tags$li("Estudiar preferencias de los consumidores"),
+                   tags$li("Analizar si hay relacion entre fumar y tener cancer de pulmon"),
+                   tags$li("Comprobar si un dado esta trucado"),
+                   tags$li("Investigar si hay diferencias entre grupos (hombres vs mujeres)")
+                 )
+             ),
+             
+             div(class = "info-box",
+                 h4("Tipos de pruebas Chi-cuadrado"),
+                 
+                 h5("1. Bondad de ajuste"),
+                 p("Compara una variable con una distribucion teorica. Ejemplo: Siguen los lanzamientos de un dado una distribucion uniforme?"),
+                 
+                 h5("2. Independencia"),
+                 p("Examina si dos variables estan relacionadas. Ejemplo: El color favorito depende del genero?"),
+                 
+                 h5("3. Homogeneidad"),
+                 p("Compara si diferentes grupos tienen la misma distribucion. Ejemplo: Las preferencias politicas son iguales en diferentes ciudades?")
+             ),
+             
+             div(class = "info-box",
+                 h4("Como funciona?"),
+                 p("La prueba calcula una medida de la diferencia entre lo observado y lo esperado:"),
+                 
+                 tags$ol(
+                   tags$li("Recolectas tus datos (lo que ves en la realidad)"),
+                   tags$li("Calculas lo que esperarias si no pasara nada especial"),
+                   tags$li("Mides la diferencia entre ambos"),
+                   tags$li("Si la diferencia es muy grande, concluyes que algo interesante esta pasando")
+                 ),
+                 
+                 p("La formula basica es:"),
+                 withMathJax(helpText("$$\\chi^2 = \\sum \\frac{(Observado - Esperado)^2}{Esperado}$$")),
+                 p("Donde sumas todas las diferencias entre lo que ves y lo que esperabas.")
+             ),
+             
+             div(class = "info-box",
+                 h4("Ejemplo simple"),
+                 p("Imagina que lanzas una moneda 100 veces:"),
+                 tags$ul(
+                   tags$li("Esperado: 50 caras y 50 sellos"),
+                   tags$li("Observado: 60 caras y 40 sellos"),
+                   tags$li("Chi-cuadrado nos dice si esta diferencia es significativa o podria deberse al azar")
+                 )
+             ),
+             
+             div(class = "info-box",
+                 h4("Cuando usar Chi-cuadrado"),
+                 
+                 h5("Usa Chi-cuadrado cuando:"),
+                 tags$ul(
+                   tags$li("Tus datos son conteos o frecuencias"),
+                   tags$li("Trabajas con categorias (colores, preferencias, si/no)"),
+                   tags$li("Quieres comparar grupos"),
+                   tags$li("Necesitas ver si hay relaciones entre variables")
+                 ),
+                 
+                 h5("No uses Chi-cuadrado cuando:"),
+                 tags$ul(
+                   tags$li("Tus datos son medidas continuas (peso, altura, tiempo)"),
+                   tags$li("Tienes muestras muy pequenas (menos de 5 en alguna categoria)"),
+                   tags$li("Quieres predecir valores exactos")
+                 )
+             ),
+             
+             div(class = "info-box",
+                 h4("Como interpretar los resultados"),
+                 
+                 p("Despues de calcular Chi-cuadrado, obtienes un valor p:"),
+                 
+                 tags$ul(
+                   tags$li("Si valor p < 0.05: Hay diferencias significativas"),
+                   tags$li("Si valor p >= 0.05: No hay diferencias significativas")
+                 ),
+                 
+                 p("El '0.05' es el nivel de significancia que usamos normalmente. Significa que estamos dispuestos a aceptar un 5% de probabilidad de equivocarnos.")
+             )
+           )),
+  
+  tabPanel(title = tags$span(HTML("&#128202; Valores Críticos")),
+           fluidPage(
+             tags$head(
+               tags$style(HTML("
+                 body {padding-top: 70px;}
+                 .info-box {background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin: 10px 0;}
+                 .table-container {overflow-x: auto;}
+               "))
+             ),
+             
+             div(class = "info-box",
+                 h3("Tabla de Valores Críticos de Chi-Cuadrado"),
+                 p("Esta tabla muestra los valores críticos de la distribución Chi-cuadrado para diferentes niveles de significancia y grados de libertad."),
+                 p("Utiliza esta tabla para comparar tu estadístico Chi-cuadrado calculado con los valores críticos y determinar si tu resultado es estadísticamente significativo.")
+             ),
+             
+             div(class = "info-box",
+                 h4("Cómo usar la tabla:"),
+                 tags$ol(
+                   tags$li("Calcula los grados de libertad (gl) de tu prueba"),
+                   tags$li("Elige tu nivel de significancia (α) - típicamente 0.05"),
+                   tags$li("Encuentra el valor crítico en la intersección de gl y α"),
+                   tags$li("Compara tu estadístico Chi-cuadrado con el valor crítico:"),
+                   tags$ul(
+                     tags$li("Si χ² calculado > valor crítico: Rechaza H0"),
+                     tags$li("Si χ² calculado ≤ valor crítico: No rechaces H0")
+                   )
+                 )
+             ),
+             
+             div(class = "info-box",
+                 h4("Tabla de Valores Críticos"),
+                 div(class = "table-container",
+                     DTOutput("tablaValoresCriticos")
+                 )
+             ),
+             
+             div(class = "info-box",
+                 h4("Calculadora de Valor Crítico"),
+                 fluidRow(
+                   column(4,
+                          numericInput("gl_calc", "Grados de libertad:",
+                                       value = 1, min = 1, max = 100, step = 1)
+                   ),
+                   column(4,
+                          selectInput("alpha_calc", "Nivel de significancia (α):",
+                                      choices = c("0.10" = 0.10, 
+                                                  "0.05" = 0.05,
+                                                  "0.01" = 0.01,
+                                                  "0.001" = 0.001),
+                                      selected = 0.05)
+                   ),
+                   column(4,
+                          br(),
+                          actionButton("calc_critico", "Calcular Valor Crítico",
+                                       class = "btn btn-primary")
+                   )
+                 ),
+                 verbatimTextOutput("resultadoCritico")
+             )
+           )),
+  
+  tabPanel(title = tags$span(HTML("&#128173; Tus datos")),
+           sidebarLayout(
+             sidebarPanel(
+               width = 4,
+               h4("Ingresa datos manual"),
+               h5("Formato: Categoria | Frecuencia"),
+               textAreaInput("manual", 
+                             label = NULL,
+                             value = "Rojo,45\nVerde,38\nAzul,30\nAmarillo,25",
+                             rows = 6,
+                             placeholder = "Ejemplo:\nCategoria1,50\nCategoria2,30\nCategoria3,20"),
+               br(),
+               actionButton("calc", tags$span(HTML("&#128173; Calcular χ²")), 
+                            class = "btn btn-success btn-lg btn-block")
+             ),
+             mainPanel(
+               width = 8,
+               h4("Tabla de datos"),
+               DTOutput("userTab"),
+               h4("Gráfico observado vs esperado"),
+               plotlyOutput("userPlot"),
+               h4("Resultado de la prueba"),
+               verbatimTextOutput("userRes")
+             )
+           )),
+  
+  tabPanel(title = tags$span(HTML("&#128202; 2 Variables")),
+           sidebarLayout(
+             sidebarPanel(
+               width = 4,
+               h4("Tabla de contingencia"),
+               selectInput("tipo_tabla", "Tipo de tabla:",
+                           choices = c("2x2" = "2x2", "2x3" = "2x3", "3x3" = "3x3")),
+               
+               conditionalPanel(
+                 condition = "input.tipo_tabla == '2x2'",
+                 h5("Ingresa los datos (2x2):"),
+                 fluidRow(
+                   column(6, numericInput("a11", "Fila1-Col1:", 50, min = 0)),
+                   column(6, numericInput("a12", "Fila1-Col2:", 30, min = 0))
+                 ),
+                 fluidRow(
+                   column(6, numericInput("a21", "Fila2-Col1:", 25, min = 0)),
+                   column(6, numericInput("a22", "Fila2-Col2:", 45, min = 0))
+                 )
+               ),
+               
+               conditionalPanel(
+                 condition = "input.tipo_tabla == '2x3'",
+                 h5("Ingresa los datos (2x3):"),
+                 fluidRow(
+                   column(4, numericInput("b11", "F1-C1:", 40, min = 0)),
+                   column(4, numericInput("b12", "F1-C2:", 30, min = 0)),
+                   column(4, numericInput("b13", "F1-C3:", 20, min = 0))
+                 ),
+                 fluidRow(
+                   column(4, numericInput("b21", "F2-C1:", 25, min = 0)),
+                   column(4, numericInput("b22", "F2-C2:", 35, min = 0)),
+                   column(4, numericInput("b23", "F2-C3:", 30, min = 0))
+                 )
+               ),
+               
+               conditionalPanel(
+                 condition = "input.tipo_tabla == '3x3'",
+                 h5("Ingresa los datos (3x3):"),
+                 fluidRow(
+                   column(4, numericInput("c11", "F1-C1:", 30, min = 0)),
+                   column(4, numericInput("c12", "F1-C2:", 25, min = 0)),
+                   column(4, numericInput("c13", "F1-C3:", 20, min = 0))
+                 ),
+                 fluidRow(
+                   column(4, numericInput("c21", "F2-C1:", 20, min = 0)),
+                   column(4, numericInput("c22", "F2-C2:", 30, min = 0)),
+                   column(4, numericInput("c23", "F2-C3:", 25, min = 0))
+                 ),
+                 fluidRow(
+                   column(4, numericInput("c31", "F3-C1:", 15, min = 0)),
+                   column(4, numericInput("c32", "F3-C2:", 20, min = 0)),
+                   column(4, numericInput("c33", "F3-C3:", 30, min = 0))
+                 )
+               ),
+               
+               br(),
+               actionButton("calc2var", tags$span(HTML("&#128202; Calcular χ² 2 Variables")), 
+                            class = "btn btn-info btn-lg btn-block")
+             ),
+             mainPanel(
+               width = 8,
+               h4("Tabla de contingencia observada"),
+               DTOutput("tablaContingencia"),
+               h4("Tabla de frecuencias esperadas"),
+               DTOutput("tablaEsperada"),
+               h4("Gráfico de decisión"),
+               plotlyOutput("graficoDecision"),
+               h4("Resultado de la prueba"),
+               verbatimTextOutput("resultado2var")
+             )
+           )),
+  
+  tabPanel(title = tags$span(HTML("&#128179; Calcula n")),
+           sidebarLayout(
+             sidebarPanel(
+               width = 4,
+               h4("Calculadora de tamaño muestral"),
+               
+               sliderInput("p", "Proporción esperada (p):", 
+                           value = 0.5, min = 0.01, max = 0.99, step = 0.01),
+               sliderInput("me", "Margen de error (%):", 
+                           value = 5, min = 1, max = 20, step = 1),
+               sliderInput("nc2", "Nivel de confianza (%):", 
+                           value = 95, min = 80, max = 99, step = 1),
+               
+               h5("Ejemplos rápidos:"),
+               fluidRow(
+                 column(6, actionButton("ej_encuesta", "Encuesta", 
+                                        class = "btn btn-outline-primary btn-sm")),
+                 column(6, actionButton("ej_estudio", "Estudio", 
+                                        class = "btn btn-outline-primary btn-sm"))
+               ),
+               fluidRow(
+                 column(6, actionButton("ej_mercado", "Mercado", 
+                                        class = "btn btn-outline-primary btn-sm")),
+                 column(6, actionButton("ej_preciso", "Preciso", 
+                                        class = "btn btn-outline-primary btn-sm"))
+               ),
+               
+               br(),
+               actionButton("calcN", tags$span(HTML("&#128077; Calcular tamaño muestral")), 
+                            class = "btn btn-warning btn-lg btn-block")
+             ),
+             mainPanel(
+               width = 8,
+               h3("Resultado del cálculo"),
+               verbatimTextOutput("nOut"),
+               br(),
+               h4("Explicación"),
+               uiOutput("explicacion"),
+               br(),
+               h4("Fórmula utilizada"),
+               withMathJax(helpText("$$n = \\frac{Z^2 \\cdot p \\cdot (1-p)}{E^2}$$")),
+               helpText("Donde: Z = valor Z del nivel de confianza, p = proporción esperada, E = margen de error")
+             )
+           )),
+  
+  tabPanel(title = tags$span(HTML("&#128218; Recursos")),
+           fluidPage(
+             tags$head(
+               tags$style(HTML("
+                 body {padding-top: 70px;}
+                 .resource-card {background: white; padding: 20px; margin: 15px 0; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
+                 .resource-card h4 {color: #007BFF; margin-top: 0;}
+               "))
+             ),
+             
+             div(class = "resource-card",
+                 h4("Video Tutoriales Recomendados"),
+                 
+                 h5("Chi-cuadrado Explicado Fácil"),
+                 p(HTML("<a href='https://www.youtube.com/watch?v=sYFt_nq1npQ' target='_blank'>Ver video en YouTube</a>")),
+                 
+                 h5("Pruebas de Hipótesis para Principiantes"),
+                 p("Canales recomendados:"),
+                 tags$ul(
+                   tags$li(HTML("<a href='https://www.youtube.com/c/StatQuest' target='_blank'>StatQuest</a> - Explicaciones visuales")),
+                   tags$li(HTML("<a href='https://www.youtube.com/c/ProfessorLeonard' target='_blank'>Professor Leonard</a> - Explicaciones detalladas")),
+                   tags$li(HTML("<a href='https://www.youtube.com/c/KhanAcademy' target='_blank'>Khan Academy</a> - Cursos completos"))
+                 )
+             ),
+             
+             div(class = "resource-card",
+                 h4("Libros y Referencias"),
+                 
+                 h5("Para Principiantes:"),
+                 tags$ul(
+                   tags$li("«Statistics for Dummies» - Deborah J. Rumsey"),
+                   tags$li("«Naked Statistics» - Charles Wheelan"),
+                   tags$li("«The Cartoon Guide to Statistics» - Larry Gonick y Woollcott Smith")
+                 ),
+                 
+                 h5("Para Avanzados:"),
+                 tags$ul(
+                   tags$li("«Categorical Data Analysis» - Alan Agresti"),
+                   tags$li("«An Introduction to Categorical Data Analysis» - Alan Agresti"),
+                   tags$li("«Statistical Methods for the Social Sciences» - Alan Agresti")
+                 )
+             )
+           ))
+)
+
+server <- function(input, output, session) {
+  
+  output$tablaValoresCriticos <- renderDT({
+    datatable(valores_criticos_chi2,
+              options = list(
+                dom = 't',
+                pageLength = 20,
+                scrollX = TRUE
+              ),
+              rownames = FALSE,
+              caption = "Valores críticos de la distribución Chi-cuadrado. Si tu estadístico calculado es mayor que el valor crítico, rechaza la hipótesis nula.")
+  })
+  
+  output$resultadoCritico <- renderPrint({
+    req(input$calc_critico)
+    
+    gl <- input$gl_calc
+    alpha <- as.numeric(input$alpha_calc)
+    
+    if(gl > 0) {
+      valor_critico <- qchisq(1 - alpha, gl)
+      
+      cat("RESULTADO DEL CÁLCULO\n")
+      cat("=====================\n")
+      cat("Grados de libertad:", gl, "\n")
+      cat("Nivel de significancia (α):", alpha, "\n")
+      cat("Valor crítico de χ²:", round(valor_critico, 4), "\n\n")
+      
+      cat("INTERPRETACIÓN:\n")
+      cat("• Si tu χ² calculado >", round(valor_critico, 4), "→ Rechaza H0\n")
+      cat("• Si tu χ² calculado ≤", round(valor_critico, 4), "→ No rechaces H0\n")
+    }
+  })
+  
+  userData <- eventReactive(input$calc, {
+    tryCatch({
+      text_lines <- strsplit(input$manual, "\n")[[1]]
+      if(length(text_lines) == 0) stop("No hay datos ingresados")
+      
+      datos <- lapply(text_lines, function(line) {
+        partes <- strsplit(trimws(line), ",")[[1]]
+        if(length(partes) < 2) stop("Formato incorrecto en linea: ", line)
+        data.frame(Categoria = trimws(partes[1]), 
+                   Observada = as.numeric(trimws(partes[2])))
+      })
+      
+      df <- do.call(rbind, datos)
+      df <- df[complete.cases(df), ]
+      return(df)
+    }, error = function(e) {
+      showNotification("Error en formato de datos manual", type = "error")
+      return(NULL)
+    })
+  })
+  
+  output$userTab <- renderDT({
+    req(userData())
+    datatable(userData(), options = list(dom = 't'), rownames = FALSE)
+  })
+  
+  output$userPlot <- renderPlotly({
+    req(userData())
+    df <- userData()
+    if(nrow(df) == 0) return(NULL)
+    
+    chi <- stats::chisq.test(df$Observada)
+    df$Esperada <- round(chi$expected, 1)
+    
+    plot_ly(df) %>%
+      add_bars(x = ~Categoria, y = ~Observada, name = 'Observada',
+               marker = list(color = cols[2])) %>%
+      add_trace(x = ~Categoria, y = ~Esperada, type = 'scatter', 
+                mode = 'lines+markers', name = 'Esperada',
+                line = list(color = cols[4], width = 4)) %>%
+      layout(yaxis = list(title = "Frecuencia"),
+             showlegend = TRUE)
+  })
+  
+  output$userRes <- renderPrint({
+    req(userData())
+    df <- userData()
+    if(nrow(df) < 2) {
+      cat("Error: Se necesitan al menos 2 categorias")
+      return()
+    }
+    
+    chi <- stats::chisq.test(df$Observada)
+    cat("χ² =", round(chi$statistic, 3),
+        "   p-valor =", round(chi$p.value, 4),
+        "   gl =", chi$parameter, "\n")
+    if (chi$p.value < 0.05) {
+      cat("-> Rechazamos H0 (hay diferencias significativas)")
+    } else {
+      cat("-> No hay evidencia para rechazar H0")
+    }
+  })
+  
+  datos2var <- eventReactive(input$calc2var, {
+    req(input$tipo_tabla)
+    
+    if(input$tipo_tabla == "2x2") {
+      matriz <- matrix(c(input$a11, input$a12,
+                         input$a21, input$a22), 
+                       nrow = 2, byrow = TRUE)
+      rownames(matriz) <- c("Grupo A", "Grupo B")
+      colnames(matriz) <- c("Categoria 1", "Categoria 2")
+    } else if(input$tipo_tabla == "2x3") {
+      matriz <- matrix(c(input$b11, input$b12, input$b13,
+                         input$b21, input$b22, input$b23), 
+                       nrow = 2, byrow = TRUE)
+      rownames(matriz) <- c("Grupo A", "Grupo B")
+      colnames(matriz) <- c("Categoria 1", "Categoria 2", "Categoria 3")
+    } else if(input$tipo_tabla == "3x3") {
+      matriz <- matrix(c(input$c11, input$c12, input$c13,
+                         input$c21, input$c22, input$c23,
+                         input$c31, input$c32, input$c33), 
+                       nrow = 3, byrow = TRUE)
+      rownames(matriz) <- c("Grupo A", "Grupo B", "Grupo C")
+      colnames(matriz) <- c("Categoria 1", "Categoria 2", "Categoria 3")
+    }
+    
+    return(matriz)
+  })
+  
+  output$tablaContingencia <- renderDT({
+    req(datos2var())
+    matriz <- datos2var()
+    
+    tabla_con_totales <- cbind(matriz, Total = rowSums(matriz))
+    tabla_con_totales <- rbind(tabla_con_totales, 
+                               Total = c(colSums(matriz), sum(matriz)))
+    
+    datatable(tabla_con_totales,
+              options = list(dom = 't', pageLength = 10),
+              caption = "Tabla de contingencia observada con totales") %>%
+      formatStyle('Total', fontWeight = 'bold')
+  })
+  
+  output$tablaEsperada <- renderDT({
+    req(datos2var())
+    chi <- stats::chisq.test(datos2var())
+    esperadas <- round(chi$expected, 2)
+    
+    tabla_con_totales <- cbind(esperadas, Total = rowSums(esperadas))
+    tabla_con_totales <- rbind(tabla_con_totales, 
+                               Total = c(colSums(esperadas), sum(esperadas)))
+    
+    datatable(tabla_con_totales,
+              options = list(dom = 't', pageLength = 10),
+              caption = "Frecuencias esperadas bajo H0 (independencia)") %>%
+      formatStyle('Total', fontWeight = 'bold')
+  })
+  
+  output$graficoDecision <- renderPlotly({
+    req(datos2var())
+    matriz <- datos2var()
+    chi <- stats::chisq.test(matriz)
+    
+    gl <- (nrow(matriz) - 1) * (ncol(matriz) - 1)
+    chi_calculado <- chi$statistic
+    valor_critico_05 <- qchisq(0.95, gl)
+    valor_critico_01 <- qchisq(0.99, gl)
+    
+    x_max <- max(chi_calculado * 1.8, valor_critico_01 * 1.5, gl * 3)
+    x <- seq(0, x_max, length.out = 300)
+    y <- dchisq(x, df = gl)
+    
+    df_dist <- data.frame(x = x, y = y)
+    
+    plot_ly(df_dist) %>%
+      
+      add_trace(x = ~x[x <= valor_critico_05], y = ~y[x <= valor_critico_05],
+                type = 'scatter', mode = 'lines',
+                name = 'Zona de Aceptación H0 (p > 0.05)',
+                line = list(color = '#28A745', width = 0),
+                fill = 'tozeroy', fillcolor = 'rgba(40, 167, 69, 0.6)',
+                hoverinfo = 'none') %>%
+      
+      add_trace(x = ~x[x >= valor_critico_05 & x <= valor_critico_01], 
+                y = ~y[x >= valor_critico_05 & x <= valor_critico_01],
+                type = 'scatter', mode = 'lines',
+                name = 'Zona de Rechazo H0 (p < 0.05)',
+                line = list(color = '#FF6B6B', width = 0),
+                fill = 'tozeroy', fillcolor = 'rgba(255, 107, 107, 0.6)',
+                hoverinfo = 'none') %>%
+      
+      add_trace(x = ~x[x >= valor_critico_01], y = ~y[x >= valor_critico_01],
+                type = 'scatter', mode = 'lines',
+                name = 'Zona de Rechazo Fuerte H0 (p < 0.01)',
+                line = list(color = '#DC3545', width = 0),
+                fill = 'tozeroy', fillcolor = 'rgba(220, 53, 69, 0.6)',
+                hoverinfo = 'none') %>%
+      
+      add_trace(x = ~x, y = ~y, type = 'scatter', mode = 'lines', 
+                name = paste('Distribución χ² (gl =', gl, ')'),
+                line = list(color = '#007BFF', width = 3),
+                hoverinfo = 'none') %>%
+      
+      add_segments(x = valor_critico_05, xend = valor_critico_05,
+                   y = 0, yend = dchisq(valor_critico_05, gl),
+                   line = list(color = '#FF6B6B', width = 3, dash = 'dash'),
+                   name = paste('Valor crítico α=0.05 =', round(valor_critico_05, 2))) %>%
+      
+      add_segments(x = valor_critico_01, xend = valor_critico_01,
+                   y = 0, yend = dchisq(valor_critico_01, gl),
+                   line = list(color = '#DC3545', width = 3, dash = 'dash'),
+                   name = paste('Valor crítico α=0.01 =', round(valor_critico_01, 2))) %>%
+      
+      add_segments(x = chi_calculado, xend = chi_calculado,
+                   y = 0, yend = dchisq(chi_calculado, gl) * 1.1,
+                   line = list(color = '#FFC107', width = 5),
+                   name = paste('χ² calculado =', round(chi_calculado, 2))) %>%
+      
+      add_trace(x = chi_calculado, y = dchisq(chi_calculado, gl),
+                type = 'scatter', mode = 'markers',
+                marker = list(color = '#FFC107', size = 12, symbol = 'diamond'),
+                name = paste('Tu valor χ² =', round(chi_calculado, 2)),
+                hoverinfo = 'text',
+                text = paste('χ² calculado =', round(chi_calculado, 2),
+                             '<br>p-valor =', round(chi$p.value, 4))) %>%
+      
+      layout(
+        title = list(
+          text = paste('<b>Gráfico de Decisión - Distribución Chi-cuadrado</b>',
+                       '<br><sup>Grados de libertad =', gl, '</sup>'),
+          x = 0.05,
+          font = list(size = 16)
+        ),
+        xaxis = list(
+          title = '<b>Valor de χ²</b>',
+          zeroline = TRUE,
+          gridcolor = '#e1e5e9',
+          range = c(0, x_max)
+        ),
+        yaxis = list(
+          title = '<b>Densidad de probabilidad</b>',
+          zeroline = FALSE,
+          gridcolor = '#e1e5e9'
+        ),
+        showlegend = TRUE,
+        legend = list(
+          orientation = "h",
+          x = 0.5,
+          xanchor = "center",
+          y = -0.3,
+          bgcolor = 'rgba(255,255,255,0.8)'
+        ),
+        plot_bgcolor = '#f8f9fa',
+        paper_bgcolor = '#f8f9fa',
+        margin = list(t = 80, b = 100),
+        annotations = list(
+          list(
+            x = chi_calculado,
+            y = dchisq(chi_calculado, gl) * 1.2,
+            text = paste("<b>Tu χ² =", round(chi_calculado, 2), "</b>"),
+            showarrow = TRUE,
+            arrowhead = 2,
+            ax = 0,
+            ay = -30,
+            font = list(color = '#FFC107', size = 12)
+          ),
+          list(
+            x = valor_critico_05,
+            y = dchisq(valor_critico_05, gl) * 1.1,
+            text = paste("α=0.05 =", round(valor_critico_05, 2)),
+            showarrow = TRUE,
+            arrowhead = 2,
+            ax = 0,
+            ay = -25,
+            font = list(color = '#FF6B6B', size = 10)
+          ),
+          list(
+            x = valor_critico_01,
+            y = dchisq(valor_critico_01, gl) * 1.1,
+            text = paste("α=0.01 =", round(valor_critico_01, 2)),
+            showarrow = TRUE,
+            arrowhead = 2,
+            ax = 0,
+            ay = -25,
+            font = list(color = '#DC3545', size = 10)
+          )
+        )
+      )
+  })
+  
+  output$resultado2var <- renderPrint({
+    req(datos2var())
+    matriz <- datos2var()
+    chi <- stats::chisq.test(matriz)
+    
+    gl <- (nrow(matriz) - 1) * (ncol(matriz) - 1)
+    
+    cat("PRUEBA CHI-CUADRADO DE INDEPENDENCIA\n")
+    cat("====================================\n\n")
+    cat("Hipótesis nula (H0): No hay asociación entre las variables\n")
+    cat("Hipótesis alternativa (H1): Existe asociación entre las variables\n\n")
+    cat("ESTADÍSTICOS:\n")
+    cat("-------------\n")
+    cat("Estadístico χ² =", round(chi$statistic, 3), "\n")
+    cat("Grados de libertad =", gl, "\n")
+    cat("Valor p =", round(chi$p.value, 4), "\n\n")
+    
+    cat("COMPARACIÓN CON VALORES CRÍTICOS:\n")
+    cat("---------------------------------\n")
+    cat("α = 0.05: Valor crítico =", round(qchisq(0.95, gl), 3), "\n")
+    cat("α = 0.01: Valor crítico =", round(qchisq(0.99, gl), 3), "\n\n")
+    
+    cat("DECISIÓN BASADA EN EL GRÁFICO:\n")
+    cat("------------------------------\n")
+    if (chi$p.value < 0.01) {
+      cat("• χ² calculado está en la ZONA DE RECHAZO (p < 0.01)\n")
+      cat("• Rechazamos H0 fuertemente\n")
+    } else if (chi$p.value < 0.05) {
+      cat("• χ² calculado está en la ZONA DE RECHAZO (p < 0.05)\n")
+      cat("• Rechazamos H0\n")
+    } else {
+      cat("• χ² calculado está en la ZONA DE ACEPTACIÓN (p ≥ 0.05)\n")
+      cat("• No rechazamos H0\n")
+    }
+    
+    if (chi$p.value < 0.05) {
+      cat("\n-> CONCLUSIÓN: Rechazamos H0\n")
+      cat("   Hay evidencia de asociación significativa entre las variables (p < 0.05)\n")
+    } else {
+      cat("\n-> CONCLUSIÓN: No rechazamos H0\n")
+      cat("   No hay evidencia suficiente de asociación entre las variables\n")
+    }
+    
+    cat("\nFÓRMULA:\n")
+    cat("--------\n")
+    cat("χ² = Σ[(Observado - Esperado)² / Esperado]\n")
+  })
+  
+  observeEvent(input$ej_encuesta, {
+    updateSliderInput(session, "p", value = 0.5)
+    updateSliderInput(session, "me", value = 5)
+    updateSliderInput(session, "nc2", value = 95)
+  })
+  
+  observeEvent(input$ej_estudio, {
+    updateSliderInput(session, "p", value = 0.1)
+    updateSliderInput(session, "me", value = 3)
+    updateSliderInput(session, "nc2", value = 95)
+  })
+  
+  observeEvent(input$ej_mercado, {
+    updateSliderInput(session, "p", value = 0.3)
+    updateSliderInput(session, "me", value = 5)
+    updateSliderInput(session, "nc2", value = 90)
+  })
+  
+  observeEvent(input$ej_preciso, {
+    updateSliderInput(session, "p", value = 0.05)
+    updateSliderInput(session, "me", value = 1)
+    updateSliderInput(session, "nc2", value = 99)
+  })
+  
+  output$nOut <- renderPrint({
+    req(input$calcN)
+    p <- input$p
+    E <- input$me/100
+    conf_level <- 1 - (1 - input$nc2/100)/2
+    Z <- stats::qnorm(conf_level)
+    n <- ceiling(Z^2 * p * (1 - p) / E^2)
+    
+    cat("RESULTADO DEL CÁLCULO\n")
+    cat("=====================\n")
+    cat("Tamaño muestral necesario:", n, "observaciones\n\n")
+    cat("Parámetros utilizados:\n")
+    cat("• Proporción esperada (p):", p, "\n")
+    cat("• Margen de error (E):", input$me, "%\n")
+    cat("• Nivel de confianza:", input$nc2, "%\n")
+    cat("• Valor Z:", round(Z, 3), "\n\n")
+    
+    if (n > 10000) {
+      cat("Nota: El tamaño muestral es grande. Considera:\n")
+      cat("   - Estratificar tu muestra\n")
+      cat("   - Usar muestreo por conglomerados\n")
+    }
+  })
+  
+  output$explicacion <- renderUI({
+    req(input$calcN)
+    p <- input$p
+    E <- input$me/100
+    conf_level <- 1 - (1 - input$nc2/100)/2
+    Z <- stats::qnorm(conf_level)
+    n <- ceiling(Z^2 * p * (1 - p) / E^2)
+    
+    tags$div(
+      tags$p("Para estimar una proporción de", round(p*100, 1), "% con un margen de error de ±", 
+             input$me, "% y un nivel de confianza del", input$nc2, "%, necesitas encuestar al menos",
+             tags$b(n), "individuos."),
+      tags$p("Este cálculo asume:"),
+      tags$ul(
+        tags$li("Población infinita o muy grande"),
+        tags$li("Muestreo aleatorio simple"),
+        tags$li("Proporción binomial")
+      )
+    )
+  })
+}
+
+shinyApp(ui, server)
