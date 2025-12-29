@@ -1,0 +1,473 @@
+library(shiny)
+library(shinydashboard)
+library(ggplot2)
+library(car)
+
+# Definir la interfaz de usuario
+ui <- dashboardPage(
+  skin = "blue",
+  
+  # Encabezado
+  dashboardHeader(
+    title = "Pruebas de Homogeneidad de Varianzas",
+    titleWidth = 350
+  ),
+  
+  # Barra lateral
+  dashboardSidebar(
+    width = 350,
+    sidebarMenu(
+      id = "tabs",
+      menuItem("Introducción", tabName = "introduccion", icon = icon("info-circle")),
+      menuItem("Simulación", tabName = "simulacion", icon = icon("sliders")),
+      menuItem("Redacción", tabName = "redaccion", icon = icon("pencil-alt")),
+      menuItem("Recursos", tabName = "recursos", icon = icon("book"))
+    )
+  ),
+  
+  # Cuerpo principal
+  dashboardBody(
+    # Incluir CSS personalizado
+    tags$head(
+      tags$link(rel = "stylesheet", type = "text/css", href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"),
+      tags$style(HTML("
+        .content-wrapper, .right-side {
+          background-color: transparent;
+        }
+        .tab-content {
+          position: relative;
+          z-index: 1;
+        }
+        .video-background {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: -1;
+          overflow: hidden;
+        }
+        .video-background video {
+          min-width: 100%;
+          min-height: 100%;
+          width: auto;
+          height: auto;
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          opacity: 0.15;
+        }
+        .box {
+          border-radius: 10px;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .info-box {
+          min-height: 100px;
+          border-radius: 10px;
+        }
+        .shiny-output-error { 
+          visibility: hidden; 
+        }
+        .shiny-output-error:before {
+          visibility: hidden;
+        }
+      "))
+    ),
+    
+    # Videos de fondo para cada pestaña
+    conditionalPanel(
+      condition = "input.tabs == 'introduccion'",
+      div(class = "video-background",
+          tags$video(
+            src = "https://assets.mixkit.co/videos/preview/mixkit-abstract-blue-and-purple-flow-119-large.mp4",
+            type = "video/mp4",
+            autoplay = TRUE,
+            loop = TRUE,
+            muted = TRUE
+          )
+      )
+    ),
+    conditionalPanel(
+      condition = "input.tabs == 'simulacion'",
+      div(class = "video-background",
+          tags$video(
+            src = "https://assets.mixkit.co/videos/preview/mixkit-geometric-abstract-animation-119-large.mp4",
+            type = "video/mp4",
+            autoplay = TRUE,
+            loop = TRUE,
+            muted = TRUE
+          )
+      )
+    ),
+    conditionalPanel(
+      condition = "input.tabs == 'redaccion'",
+      div(class = "video-background",
+          tags$video(
+            src = "https://assets.mixkit.co/videos/preview/mixkit-abstract-mesh-motion-119-large.mp4",
+            type = "video/mp4",
+            autoplay = TRUE,
+            loop = TRUE,
+            muted = TRUE
+          )
+      )
+    ),
+    conditionalPanel(
+      condition = "input.tabs == 'recursos'",
+      div(class = "video-background",
+          tags$video(
+            src = "https://assets.mixkit.co/videos/preview/mixkit-abstract-orange-flow-119-large.mp4",
+            type = "video/mp4",
+            autoplay = TRUE,
+            loop = TRUE,
+            muted = TRUE
+          )
+      )
+    ),
+    
+    # Contenido de las pestañas
+    tabItems(
+      # Pestaña Introducción
+      tabItem(
+        tabName = "introduccion",
+        h2("Introducción a las Pruebas de Homogeneidad de Varianzas"),
+        fluidRow(
+          box(
+            title = "Prueba de Levene", status = "primary", solidHeader = TRUE,
+            width = 6,
+            p("La prueba de Levene es una prueba estadística utilizada para evaluar la igualdad de varianzas 
+              en diferentes grupos. Es una alternativa a la prueba de Bartlett cuando los datos no siguen 
+              una distribución normal."),
+            p("Fue desarrollada por el estadístico Howard Levene en 1960 y es ampliamente utilizada en el 
+              análisis de varianza (ANOVA) para verificar el supuesto de homocedasticidad."),
+            p("La prueba se basa en calcular las desviaciones absolutas de las observaciones respecto a la 
+              mediana de cada grupo y luego realizar un ANOVA sobre estas desviaciones."),
+            tags$ul(
+              tags$li("Hipótesis nula (H0): Las varianzas de todos los grupos son iguales"),
+              tags$li("Hipótesis alternativa (H1): Al menos una varianza es diferente")
+            )
+          ),
+          box(
+            title = "Prueba de Bartlett", status = "success", solidHeader = TRUE,
+            width = 6,
+            p("La prueba de Bartlett es una prueba paramétrica para verificar la homogeneidad de varianzas 
+              en múltiples grupos. Es más sensible que la prueba de Levene pero requiere que los datos 
+              sigan una distribución normal."),
+            p("Fue desarrollada por Maurice Stevenson Bartlett en 1937 y se basa en una aproximación 
+              chi-cuadrado para evaluar la igualdad de varianzas."),
+            p("Esta prueba es especialmente útil cuando se trabaja con datos que provienen de distribuciones 
+              normales y se necesita verificar el supuesto de homocedasticidad antes de realizar un ANOVA."),
+            tags$ul(
+              tags$li("Hipótesis nula (H0): Las varianzas de todos los grupos son iguales"),
+              tags$li("Hipótesis alternativa (H1): Al menos una varianza es diferente")
+            )
+          )
+        ),
+        fluidRow(
+          box(
+            title = "Comparación entre las Pruebas", status = "warning", solidHeader = TRUE,
+            width = 12,
+            p("Aunque ambas pruebas evalúan la homogeneidad de varianzas, existen diferencias importantes:"),
+            tags$ul(
+              tags$li("La prueba de Bartlett es paramétrica y requiere normalidad, mientras que la prueba de Levene es no paramétrica"),
+              tags$li("La prueba de Levene es más robusta ante desviaciones de la normalidad"),
+              tags$li("La prueba de Bartlett es más potente cuando se cumplen los supuestos de normalidad"),
+              tags$li("La prueba de Levene se recomienda cuando los datos no son normales o cuando el tamaño de muestra es pequeño")
+            )
+          )
+        )
+      ),
+      
+      # Pestaña Simulación
+      tabItem(
+        tabName = "simulacion",
+        h2("Simulación de las Pruebas de Levene y Bartlett"),
+        fluidRow(
+          box(
+            title = "Parámetros de la Simulación", status = "primary", solidHeader = TRUE,
+            width = 4,
+            sliderInput("n_groups", "Número de grupos:", min = 2, max = 5, value = 3),
+            sliderInput("n_obs", "Número de observaciones por grupo:", min = 10, max = 100, value = 30),
+            sliderInput("varianza", "Varianza base:", min = 1, max = 10, value = 5, step = 0.5),
+            sliderInput("dif_var", "Diferencia de varianzas (%):", min = 0, max = 200, value = 0),
+            selectInput("distribucion", "Distribución de los datos:", 
+                        choices = c("Normal" = "normal", "Sesgada" = "sesgada", "Con outliers" = "outliers")),
+            actionButton("simular", "Generar Nueva Simulación", class = "btn-success")
+          ),
+          box(
+            title = "Gráfico de los Datos", status = "info", solidHeader = TRUE,
+            width = 8,
+            plotOutput("grafico_datos", height = "400px")
+          )
+        ),
+        fluidRow(
+          box(
+            title = "Resultados de las Pruebas", status = "warning", solidHeader = TRUE,
+            width = 6,
+            h4("Prueba de Levene"),
+            verbatimTextOutput("resultado_levene"),
+            h4("Prueba de Bartlett"),
+            verbatimTextOutput("resultado_bartlett")
+          ),
+          box(
+            title = "Interpretación", status = "success", solidHeader = TRUE,
+            width = 6,
+            uiOutput("interpretacion")
+          )
+        )
+      ),
+      
+      # Pestaña Redacción
+      tabItem(
+        tabName = "redaccion",
+        h2("Redacción de Resultados Estadísticos"),
+        fluidRow(
+          box(
+            title = "Guía para Redactar Resultados", status = "primary", solidHeader = TRUE,
+            width = 12,
+            p("A continuación se presenta una guía para redactar correctamente los resultados de las pruebas 
+              de homogeneidad de varianzas en informes de investigación."),
+            tags$h4("Formato APA para la Prueba de Levene"),
+            tags$ul(
+              tags$li("Se realizó una prueba de Levene para evaluar la homogeneidad de varianzas. Los resultados indicaron que las varianzas fueron homogéneas, F(df1, df2) = valor_F, p = valor_p."),
+              tags$li("Se realizó una prueba de Levene para evaluar la homogeneidad de varianzas. Los resultados indicaron que las varianzas no fueron homogéneas, F(df1, df2) = valor_F, p = valor_p.")
+            ),
+            tags$h4("Formato APA para la Prueba de Bartlett"),
+            tags$ul(
+              tags$li("Se realizó una prueba de Bartlett para evaluar la homogeneidad de varianzas. Los resultados indicaron que las varianzas fueron homogéneas, χ²(df) = valor_chi, p = valor_p."),
+              tags$li("Se realizó una prueba de Bartlett para evaluar la homogeneidad de varianzas. Los resultados indicaron que las varianzas no fueron homogéneas, χ²(df) = valor_chi, p = valor_p.")
+            )
+          )
+        ),
+        fluidRow(
+          box(
+            title = "Generador de Texto", status = "info", solidHeader = TRUE,
+            width = 6,
+            selectInput("prueba_seleccionada", "Seleccione la prueba:",
+                        choices = c("Prueba de Levene", "Prueba de Bartlett")),
+            numericInput("valor_estadistico", "Valor del estadístico:", value = 2.45, step = 0.01),
+            numericInput("grados_libertad1", "Grados de libertad 1:", value = 2, min = 1),
+            numericInput("grados_libertad2", "Grados de libertad 2 (solo Levene):", value = 87, min = 1),
+            numericInput("valor_p", "Valor p:", value = 0.092, step = 0.001, min = 0, max = 1),
+            selectInput("resultado_prueba", "Resultado de la prueba:",
+                        choices = c("Varianzas homogéneas", "Varianzas no homogéneas"))
+          ),
+          box(
+            title = "Texto Generado", status = "success", solidHeader = TRUE,
+            width = 6,
+            uiOutput("texto_generado")
+          )
+        )
+      ),
+      
+      # Pestaña Recursos
+      tabItem(
+        tabName = "recursos",
+        h2("Recursos Adicionales"),
+        fluidRow(
+          box(
+            title = "Documentación y Referencias", status = "primary", solidHeader = TRUE,
+            width = 12,
+            tags$ul(
+              tags$li(tags$a(href = "https://www.jstor.org/stable/2333709", "Levene, H. (1960). Robust tests for equality of variances.")),
+              tags$li(tags$a(href = "https://www.jstor.org/stable/2333958", "Bartlett, M. S. (1937). Properties of sufficiency and statistical tests.")),
+              tags$li(tags$a(href = "https://cran.r-project.org/web/packages/car/car.pdf", "Documentación del paquete car en R")),
+              tags$li(tags$a(href = "https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/bartlett.test", "Documentación de bartlett.test en R"))
+            )
+          )
+        ),
+        fluidRow(
+          box(
+            title = "Ejemplos de Código en R", status = "info", solidHeader = TRUE,
+            width = 6,
+            h4("Prueba de Levene"),
+            tags$pre(
+              "# Cargar el paquete car\nlibrary(car)\n\n# Datos de ejemplo\ngrupo <- factor(rep(1:3, each=30))\nvalores <- c(rnorm(30, 10, 1), rnorm(30, 10, 2), rnorm(30, 10, 3))\n\n# Aplicar la prueba de Levene\nleveneTest(valores ~ grupo)"
+            ),
+            h4("Prueba de Bartlett"),
+            tags$pre(
+              "# Datos de ejemplo\ngrupo <- factor(rep(1:3, each=30))\nvalores <- c(rnorm(30, 10, 1), rnorm(30, 10, 2), rnorm(30, 10, 3))\n\n# Aplicar la prueba de Bartlett\nbartlett.test(valores ~ grupo)"
+            )
+          ),
+          box(
+            title = "Videos Explicativos", status = "success", solidHeader = TRUE,
+            width = 6,
+            tags$div(
+              style = "text-align: center;",
+              tags$iframe(width = "100%", height = "315", 
+                          src = "https://www.youtube.com/embed/embed_code_1", 
+                          frameborder = "0", allowfullscreen = NA),
+              tags$p("Explicación de la prueba de Levene"),
+              tags$iframe(width = "100%", height = "315", 
+                          src = "https://www.youtube.com/embed/embed_code_2", 
+                          frameborder = "0", allowfullscreen = NA),
+              tags$p("Explicación de la prueba de Bartlett")
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+# Definir el servidor
+server <- function(input, output, session) {
+  
+  # Datos reactivos para la simulación
+  datos_simulados <- eventReactive(input$simular, {
+    set.seed(123) # Para reproducibilidad
+    
+    n_groups <- input$n_groups
+    n_obs <- input$n_obs
+    var_base <- input$varianza
+    dif_var <- input$dif_var / 100
+    
+    # Crear grupos con diferentes varianzas
+    grupos <- factor(rep(1:n_groups, each = n_obs))
+    valores <- numeric(n_groups * n_obs)
+    
+    for(i in 1:n_groups) {
+      var_grupo <- var_base * (1 + (i-1) * dif_var)
+      
+      if(input$distribucion == "normal") {
+        valores[((i-1)*n_obs + 1):(i*n_obs)] <- rnorm(n_obs, mean = 10, sd = sqrt(var_grupo))
+      } else if(input$distribucion == "sesgada") {
+        # Distribución sesgada (gamma)
+        valores[((i-1)*n_obs + 1):(i*n_obs)] <- rgamma(n_obs, shape = 2, scale = sqrt(var_grupo/2))
+      } else if(input$distribucion == "outliers") {
+        # Distribución con outliers
+        valores[((i-1)*n_obs + 1):(i*n_obs)] <- c(
+          rnorm(n_obs * 0.9, mean = 10, sd = sqrt(var_grupo)),
+          rnorm(n_obs * 0.1, mean = 10 + 5*sqrt(var_grupo), sd = sqrt(var_grupo))
+        )
+      }
+    }
+    
+    data.frame(grupo = grupos, valor = valores)
+  }, ignoreNULL = FALSE)
+  
+  # Gráfico de los datos
+  output$grafico_datos <- renderPlot({
+    datos <- datos_simulados()
+    
+    ggplot(datos, aes(x = grupo, y = valor, fill = grupo)) +
+      geom_boxplot(alpha = 0.7) +
+      geom_jitter(width = 0.2, alpha = 0.5, size = 1) +
+      labs(title = "Distribución de los datos por grupo",
+           x = "Grupo", y = "Valor") +
+      theme_minimal() +
+      theme(legend.position = "none",
+            text = element_text(size = 14))
+  })
+  
+  # Resultados de la prueba de Levene
+  output$resultado_levene <- renderPrint({
+    datos <- datos_simulados()
+    
+    tryCatch({
+      resultado <- leveneTest(valor ~ grupo, data = datos)
+      print(resultado)
+    }, error = function(e) {
+      cat("Error al realizar la prueba de Levene:", e$message)
+    })
+  })
+  
+  # Resultados de la prueba de Bartlett
+  output$resultado_bartlett <- renderPrint({
+    datos <- datos_simulados()
+    
+    tryCatch({
+      resultado <- bartlett.test(valor ~ grupo, data = datos)
+      print(resultado)
+    }, error = function(e) {
+      cat("Error al realizar la prueba de Bartlett:", e$message)
+    })
+  })
+  
+  # Interpretación de resultados
+  output$interpretacion <- renderUI({
+    datos <- datos_simulados()
+    
+    # Realizar pruebas
+    tryCatch({
+      levene <- leveneTest(valor ~ grupo, data = datos)
+      bartlett <- bartlett.test(valor ~ grupo, data = datos)
+      
+      p_levene <- levene$`Pr(>F)`[1]
+      p_bartlett <- bartlett$p.value
+      
+      # Determinar interpretación
+      interpretacion_levene <- ifelse(p_levene < 0.05, 
+                                      "Según la prueba de Levene, las varianzas NO son homogéneas (p < 0.05).",
+                                      "Según la prueba de Levene, las varianzas son homogéneas (p ≥ 0.05).")
+      
+      interpretacion_bartlett <- ifelse(p_bartlett < 0.05, 
+                                        "Según la prueba de Bartlett, las varianzas NO son homogéneas (p < 0.05).",
+                                        "Según la prueba de Bartlett, las varianzas son homogéneas (p ≥ 0.05).")
+      
+      # Comparación entre pruebas
+      comparacion <- ifelse((p_levene < 0.05) == (p_bartlett < 0.05),
+                            "Ambas pruebas coinciden en su conclusión.",
+                            "Las pruebas difieren en su conclusión. Esto puede deberse a que los datos no siguen una distribución normal, lo que afecta más a la prueba de Bartlett.")
+      
+      HTML(paste(
+        tags$h4("Interpretación:"),
+        tags$p(interpretacion_levene),
+        tags$p(interpretacion_bartlett),
+        tags$p(comparacion),
+        tags$p("Nota: La prueba de Levene es más robusta cuando los datos no son normales, mientras que la prueba de Bartlett es más potente cuando se cumple el supuesto de normalidad.")
+      ))
+    }, error = function(e) {
+      HTML(paste(
+        tags$p("Error al calcular la interpretación:", e$message)
+      ))
+    })
+  })
+  
+  # Texto generado para redacción
+  output$texto_generado <- renderUI({
+    prueba <- input$prueba_seleccionada
+    estadistico <- input$valor_estadistico
+    gl1 <- input$grados_libertad1
+    gl2 <- input$grados_libertad2
+    p_valor <- input$valor_p
+    resultado <- input$resultado_prueba
+    
+    if(prueba == "Prueba de Levene") {
+      texto <- paste0(
+        "Se realizó una prueba de Levene para evaluar la homogeneidad de varianzas. ",
+        "Los resultados indicaron que las varianzas ",
+        ifelse(resultado == "Varianzas homogéneas", "fueron homogéneas", "no fueron homogéneas"),
+        ", F(", gl1, ", ", gl2, ") = ", round(estadistico, 2), 
+        ", p = ", ifelse(p_valor < 0.001, "< .001", round(p_valor, 3)), "."
+      )
+    } else {
+      texto <- paste0(
+        "Se realizó una prueba de Bartlett para evaluar la homogeneidad de varianzas. ",
+        "Los resultados indicaron que las varianzas ",
+        ifelse(resultado == "Varianzas homogéneas", "fueron homogéneas", "no fueron homogéneas"),
+        ", χ²(", gl1, ") = ", round(estadistico, 2), 
+        ", p = ", ifelse(p_valor < 0.001, "< .001", round(p_valor, 3)), "."
+      )
+    }
+    
+    HTML(paste(
+      tags$h4("Texto en formato APA:"),
+      tags$p(texto),
+      tags$hr(),
+      tags$h4("Explicación:"),
+      tags$p("Este texto sigue las directrices de la APA (7ª edición) para la presentación de resultados estadísticos."),
+      tags$p("Recuerde incluir siempre:"),
+      tags$ul(
+        tags$li("El nombre de la prueba realizada"),
+        tags$li("El propósito de la prueba"),
+        tags$li("El resultado de la prueba (homogéneas o no homogéneas)"),
+        tags$li("El estadístico de prueba con sus grados de libertad"),
+        tags$li("El valor p exacto o indicando si es menor a .001")
+      )
+    ))
+  })
+}
+
+# Ejecutar la aplicación
+shinyApp(ui, server)
